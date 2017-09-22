@@ -22,13 +22,42 @@ Public Class Des_BNDBuild
 
     Private WithEvents updateUITimer As New System.Windows.Forms.Timer()
 
-
+    Dim ShiftJISEncoding As System.Text.Encoding = System.Text.Encoding.GetEncoding("shift_jis")
 
     Public Sub output(txt As String)
         SyncLock outputLock
             outputList.Add(txt)
         End SyncLock
     End Sub
+
+    Private Function EncodeFileName(ByVal filename As String) As Byte()
+        Return ShiftJISEncoding.GetBytes(filename)
+    End Function
+
+    Private Sub EncodeFileName(ByVal filename As String, ByVal loc As UInteger)
+        'Insert string directly to main byte array
+        Dim BArr() As Byte
+
+        BArr = ShiftJISEncoding.GetBytes(filename)
+
+        Array.Copy(BArr, 0, bytes, loc, BArr.Length)
+    End Sub
+
+    Private Function DecodeFileName(ByVal loc As UInteger) As String
+        Dim b As New System.Collections.Generic.List(Of Byte)
+        Dim cont As Boolean = True
+
+        While cont
+            If bytes(loc) > 0 Then
+                b.Add(bytes(loc))
+                loc += 1
+            Else
+                cont = False
+            End If
+        End While
+
+        Return ShiftJISEncoding.GetString(b.ToArray())
+    End Function
 
     Private Function StrFromBytes(ByVal loc As UInteger) As String
         Dim Str As String = ""
@@ -355,7 +384,7 @@ Public Class Des_BNDBuild
                         Next
 
 
-                        currFileName = StrFromBytes(UIntFromBytes(bhdOffSet + &H10))
+                        currFileName = DecodeFileName(UIntFromBytes(bhdOffSet + &H10))
                         fileList += currFileID & "," & currFileName & Environment.NewLine
 
                         currFileName = filepath & filename & "bhd" & ".extract\" & currFileName
@@ -406,7 +435,7 @@ Public Class Des_BNDBuild
                                 currFileOffset = UIntFromBytes(&H28 + i * &H14)
                                 currFileID = UIntFromBytes(&H2C + i * &H14)
                                 currFileNameOffset = UIntFromBytes(&H30 + i * &H14)
-                                currFileName = StrFromBytes(currFileNameOffset)
+                                currFileName = DecodeFileName(currFileNameOffset)
                                 fileList += currFileID & "," & currFileName & Environment.NewLine
                                 currFileName = currFileName.Replace("N:\", "")
                                 currFileName = currFileName.Replace("n:\", "")
@@ -418,7 +447,7 @@ Public Class Des_BNDBuild
                                 currFileOffset = UIntFromBytes(&H28 + i * &H18)
                                 currFileID = UIntFromBytes(&H2C + i * &H18)
                                 currFileNameOffset = UIntFromBytes(&H30 + i * &H18)
-                                currFileName = StrFromBytes(currFileNameOffset)
+                                currFileName = DecodeFileName(currFileNameOffset)
                                 fileList += currFileID & "," & currFileName & Environment.NewLine
                                 currFileName = currFileName.Replace("N:\", "")
                                 currFileName = currFileName.Replace("n:\", "")
@@ -429,7 +458,7 @@ Public Class Des_BNDBuild
                                 currFileSize = UIntFromBytes(&H24 + i * &HC)
                                 currFileOffset = UIntFromBytes(&H28 + i * &HC)
                                 currFileID = i
-                                currFileName = i & "." & Microsoft.VisualBasic.Left(StrFromBytes(currFileOffset), 4)
+                                currFileName = i & "." & Microsoft.VisualBasic.Left(DecodeFileName(currFileOffset), 4)
                                 fileList += currFileName & Environment.NewLine
                                 currFileName = currFileName.Replace("N:\", "")
                                 currFileName = currFileName.Replace("n:\", "")
@@ -441,7 +470,7 @@ Public Class Des_BNDBuild
                                 currFileOffset = UIntFromBytes(&H28 + i * &H14)
                                 currFileID = UIntFromBytes(&H2C + i * &H14)
                                 currFileNameOffset = UIntFromBytes(&H30 + i * &H14)
-                                currFileName = StrFromBytes(currFileNameOffset)
+                                currFileName = DecodeFileName(currFileNameOffset)
                                 fileList += currFileID & "," & currFileName & Environment.NewLine
                                 currFileName = currFileName.Replace("N:\", "")
                                 currFileName = currFileName.Replace("n:\", "")
@@ -453,7 +482,7 @@ Public Class Des_BNDBuild
                                 currFileOffset = UIntFromBytes(&H28 + i * &H18)
                                 currFileID = UIntFromBytes(&H2C + i * &H18)
                                 currFileNameOffset = UIntFromBytes(&H30 + i * &H18)
-                                currFileName = StrFromBytes(currFileNameOffset)
+                                currFileName = DecodeFileName(currFileNameOffset)
                                 fileList += currFileID & "," & currFileName & Environment.NewLine
                                 currFileName = currFileName.Replace("N:\", "")
                                 currFileName = currFileName.Replace("n:\", "")
@@ -503,7 +532,7 @@ Public Class Des_BNDBuild
                             currFileFlags1 = UIntFromBytes(&H18 + i * &H20)
                             currFileFlags2 = UIntFromBytes(&H1C + i * &H20)
                             currFileNameOffset = UIntFromBytes(&H28 + i * &H20)
-                            currFileName = StrFromBytes(currFileNameOffset)
+                            currFileName = DecodeFileName(currFileNameOffset)
                             fileList += currFileFlags1 & "," & currFileFlags2 & "," & currFileName & Environment.NewLine
                             currFileName = filepath & filename & ".extract\" & currFileName
                             currFilePath = Microsoft.VisualBasic.Left(currFileName, InStrRev(currFileName, "\"))
@@ -532,7 +561,7 @@ Public Class Des_BNDBuild
                             currFileNameOffset = UIntFromBytes(&H1C + i * &H14)
                             currFileFlags2 = UIntFromBytes(&H20 + i * &H14)
 
-                            currFileName = StrFromBytes(currFileNameOffset) & ".dds"
+                            currFileName = DecodeFileName(currFileNameOffset) & ".dds"
                             fileList += currFileFlags1 & "," & currFileFlags2 & "," & currFileName & Environment.NewLine
                             currFileName = filepath & filename & ".extract\" & currFileName
                             currFilePath = Microsoft.VisualBasic.Left(currFileName, InStrRev(currFileName, "\"))
@@ -562,7 +591,7 @@ Public Class Des_BNDBuild
                             Dim numChunks As UInteger = UIntFromBytes(&H68)
                             Dim DecSize As UInteger
 
-                            fileList = StrFromBytes(&H28) & Environment.NewLine & Microsoft.VisualBasic.Left(filename, filename.Length - &H4) & Environment.NewLine
+                            fileList = DecodeFileName(&H28) & Environment.NewLine & Microsoft.VisualBasic.Left(filename, filename.Length - &H4) & Environment.NewLine
 
                             For i = 0 To numChunks - 1
                                 If i = numChunks - 1 Then
@@ -591,7 +620,7 @@ Public Class Des_BNDBuild
                             Dim newbytes(UIntFromBytes(&H20) - 1) As Byte
                             Dim decbytes(UIntFromBytes(&H1C)) As Byte
 
-                            fileList = StrFromBytes(&H28) & Environment.NewLine & Microsoft.VisualBasic.Left(filename, filename.Length - &H4) & Environment.NewLine
+                            fileList = DecodeFileName(&H28) & Environment.NewLine & Microsoft.VisualBasic.Left(filename, filename.Length - &H4) & Environment.NewLine
 
                             Array.Copy(bytes, startOffset, newbytes, 0, newbytes.Length - 2)
 
@@ -827,7 +856,7 @@ Public Class Des_BNDBuild
 
                     ReDim Preserve bytes(bytes.Length + currFileName.Length)
 
-                    StrToBytes(currFileName, currNameOffset)
+                    EncodeFileName(currFileName, currNameOffset)
 
                     For j = 0 To fStream.Length - 1
                         BDTStream.WriteByte(fStream.ReadByte)
@@ -860,7 +889,7 @@ Public Class Des_BNDBuild
 
 
                 For i = 2 To fileList.Length - 1
-                    namesEndLoc += fileList(i).Length - InStr(fileList(i), ",") + 1
+                    namesEndLoc += EncodeFileName(fileList(i)).Length - InStr(fileList(i), ",") + 1
                 Next
 
                 Select Case flags
@@ -930,8 +959,8 @@ Public Class Des_BNDBuild
                             End If
                             currFileOffset += padding
 
-                            StrToBytes(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
-                            currFileNameOffset += Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))).Length + 1
+                            EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
+                            currFileNameOffset += EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ",")))).Length + 1
                         Case &H10100
                             currFileName = fileList(i + 2)
                             currFileName = filepath & filename & ".extract\" & currFileName
@@ -987,8 +1016,8 @@ Public Class Des_BNDBuild
                             End If
                             currFileOffset += padding
 
-                            StrToBytes(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
-                            currFileNameOffset += Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))).Length + 1
+                            EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
+                            currFileNameOffset += EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ",")))).Length + 1
                         Case &H2E010100
                             currFileName = filepath & filename & ".extract\" & Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ",") + 3))
                             tmpbytes = File.ReadAllBytes(currFileName)
@@ -1020,8 +1049,8 @@ Public Class Des_BNDBuild
                             End If
                             currFileOffset += padding
 
-                            StrToBytes(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
-                            currFileNameOffset += Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))).Length + 1
+                            EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ","))), currFileNameOffset)
+                            currFileNameOffset += EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStr(fileList(i + 2), ",")))).Length + 1
                     End Select
                 Next
             Case "TPF"
@@ -1045,7 +1074,7 @@ Public Class Des_BNDBuild
                     namesEndLoc = &H10 + numFiles * &H20
 
                     For i = 2 To fileList.Length - 1
-                        namesEndLoc += fileList(i).Length - InStrRev(fileList(i), ",") + 1
+                        namesEndLoc += EncodeFileName(fileList(i)).Length - InStrRev(fileList(i), ",") + 1
                     Next
 
                     UIntToBytes(numFiles, &H8)
@@ -1091,8 +1120,8 @@ Public Class Des_BNDBuild
                         currFileOffset += currFileSize + padding
                         totalFileSize += currFileSize
 
-                        StrToBytes(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStrRev(fileList(i + 2), ","))), currFileNameOffset)
-                        currFileNameOffset += Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStrRev(fileList(i + 2), ","))).Length + 1
+                        EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStrRev(fileList(i + 2), ","))), currFileNameOffset)
+                        currFileNameOffset += EncodeFileName(Microsoft.VisualBasic.Right(fileList(i + 2), fileList(i + 2).Length - (InStrRev(fileList(i + 2), ",")))).Length + 1
                     Next
 
                     UIntToBytes(totalFileSize, &H4)
@@ -1110,7 +1139,7 @@ Public Class Des_BNDBuild
                         currFileName = fileList(i)
                         currFileName = currFileName.Substring(InStrRev(currFileName, ","))
                         currFileName = currFileName.Substring(0, currFileName.Length - ".dds".Length)
-                        namesEndLoc += currFileName.Length + 1
+                        namesEndLoc += EncodeFileName(currFileName).Length + 1
                     Next
 
                     UIntToBytes(numFiles, &H8)
@@ -1160,8 +1189,8 @@ Public Class Des_BNDBuild
                         totalFileSize += currFileSize
 
                         currFileName = currFileName.Substring(0, currFileName.Length - ".dds".Length)
-                        StrToBytes(currFileName, currFileNameOffset)
-                        currFileNameOffset += currFileName.Length + 1
+                        EncodeFileName(currFileName, currFileNameOffset)
+                        currFileNameOffset += EncodeFileName(currFileName).Length + 1
                     Next
 
                     UIntToBytes(totalFileSize, &H4)
